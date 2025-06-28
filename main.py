@@ -15,19 +15,18 @@ async def record_clip(
     if not (0 <= start < end <= 60):
         raise HTTPException(status_code=400, detail="Clip duration must be between 0–60s")
 
-    filename = f"clip_{uuid.uuid4().hex[:8]}.mp4"
-    abs_path = os.path.abspath(filename)
+    filename = f"/tmp/clip_{uuid.uuid4().hex[:8]}.mp4"
 
     try:
-        await record_youtube_clip(url, start, end, abs_path)
+        await record_youtube_clip(url, start, end, filename)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Recording failed: {str(e)}")
 
-    if not os.path.exists(abs_path):
-        raise HTTPException(status_code=500, detail="Clip file not found after recording")
+    if not os.path.exists(filename):
+        raise HTTPException(status_code=500, detail="Recording failed: clip not created")
 
     return FileResponse(
-        path=abs_path,
+        path=filename,
         media_type="video/mp4",
         filename="clip.mp4",
         headers={"Content-Disposition": "inline; filename=clip.mp4"}
