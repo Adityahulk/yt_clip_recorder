@@ -7,14 +7,11 @@ async def record_youtube_clip(url: str, start: float, end: float, output_path: s
     duration = end - start
     abs_output = os.path.abspath(output_path)
 
-    print("📺 DISPLAY =", os.environ.get("DISPLAY"))
-    os.system("pactl list short sinks || echo 'No PulseAudio sinks found'")
-
     browser = await launch(
+        executablePath="/usr/bin/chromium",  # Use system Chromium
         headless=True,
         args=[
             "--no-sandbox",
-            "--autoplay-policy=no-user-gesture-required",
             "--disable-dev-shm-usage",
             "--mute-audio",
             "--window-size=1280,720",
@@ -32,7 +29,7 @@ async def record_youtube_clip(url: str, start: float, end: float, output_path: s
         video.play();
     """)
 
-    await asyncio.sleep(3)  # Let the video start rendering
+    await asyncio.sleep(3)  # Let video load and render
 
     ffmpeg_cmd = [
         "ffmpeg", "-y",
@@ -52,12 +49,8 @@ async def record_youtube_clip(url: str, start: float, end: float, output_path: s
         abs_output
     ]
 
-    print("🎬 Starting FFmpeg recording...")
     proc = subprocess.Popen(ffmpeg_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     stdout, stderr = proc.communicate()
-
-    print("📤 FFmpeg output:", stdout.decode())
-    print("❗ FFmpeg error:", stderr.decode())
 
     await browser.close()
 
