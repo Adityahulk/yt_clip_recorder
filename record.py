@@ -8,51 +8,61 @@ async def record_youtube_clip(url: str, start: float, end: float, output_path: s
     abs_output = os.path.abspath(output_path)
 
     browser = await launch(
-        executablePath="/usr/bin/chromium",  # Use system Chromium
+        executablePath="/usr/bin/chromium",  # Using system-installed Chromium
         headless=True,
         args=[
             "--no-sandbox",
             "--disable-dev-shm-usage",
-            "--mute-audio",
+            "--disable-gpu",
             "--window-size=1280,720",
+            "--autoplay-policy=no-user-gesture-required",
         ]
     )
-    page = await browser.newPage()
-    await page.setViewport({"width": 1280, "height": 720})
-    await page.goto(url)
-    await page.waitForSelector("video")
+    try:
+        page = await browser.newPage()
 
-    await page.evaluate(f"""
-        const video = document.querySelector("video");
-        video.currentTime = {start};
-        video.muted = false;
-        video.play();
-    """)
+        await page.setUserAgent(
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120 Safari/537.36"
+        )
+        await page.setViewport({"width": 1280, "height": 720})
 
-    await asyncio.sleep(3)  # Let video load and render
+        # Navigate and wait until video is loaded
+        await page.goto(url, {"timeout": 60000, "waitUntil": "networkidle2"})
+        await asyncio.sleep(2)
 
-    ffmpeg_cmd = [
-        "ffmpeg", "-y",
-        "-loglevel", "error",
-        "-probesize", "50M",
-        "-f", "x11grab",
-        "-video_size", "1280x720",
-        "-i", os.environ.get("DISPLAY", ":99.0"),
-        "-f", "pulse",
-        "-i", "default",
-        "-t", str(duration),
-        "-c:v", "libx264",
-        "-preset", "ultrafast",
-        "-c:a", "aac",
-        "-b:a", "128k",
-        "-pix_fmt", "yuv420p",
-        abs_output
-    ]
+        # Wait for video tag and set start time
+        await page.waitForSelector("video")
+        await page.evaluate(f"""
+            const video = document.querySelector("video");
+            video.currentTime = {start};
+            video.muted = false;
+            video.play();
+        """)
 
-    proc = subprocess.Popen(ffmpeg_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    stdout, stderr = proc.communicate()
+        await asyncio.sleep(3)  # Allow buffer to load
 
-    await browser.close()
+        ffmpeg_cmd = [
+            "ffmpeg", "-y",
+            "-f", "x11grab",
+            "-video_size", "1280x720",
+            "-i", os.environ.get("DISPLAY", ":99.0"),
+            "-f", "pulse",
+            "-i", "default",
+            "-t", str(duration),
+            "-c:v", "libx264",
+            "-preset", "ultrafast",
+            "-c:a", "aac",
+            "-b:a", "128k",
+            "-pix_fmt", "yuv420p",
+            abs_output
+        ]
 
-    if not os.path.exists(abs_output):
-        raise RuntimeError("Recording failed: clip not created")
+        proc = subprocess.Popen(ffmpeg_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        await asyncio.sleep(duration + 2)
+        proc.terminate()
+
+        if not os.path.exists(abs_output):
+            raise RuntimeError("Recording failed: clip not created")
+
+    finally:
+        await browser.close()
