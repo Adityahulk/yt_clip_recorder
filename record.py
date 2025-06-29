@@ -8,7 +8,7 @@ async def record_youtube_clip(url: str, start: float, end: float, output_path: s
     abs_output = os.path.abspath(output_path)
 
     browser = await launch(
-        executablePath="/usr/bin/chromium",  # Using system-installed Chromium
+        executablePath="/usr/bin/chromium",
         headless=True,
         args=[
             "--no-sandbox",
@@ -20,18 +20,13 @@ async def record_youtube_clip(url: str, start: float, end: float, output_path: s
     )
     try:
         page = await browser.newPage()
-
-        await page.setUserAgent(
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120 Safari/537.36"
-        )
         await page.setViewport({"width": 1280, "height": 720})
+        await page.setUserAgent("Mozilla/5.0")
 
-        # Navigate and wait until video is loaded
         await page.goto(url, {"timeout": 60000, "waitUntil": "networkidle2"})
         await asyncio.sleep(2)
-
-        # Wait for video tag and set start time
         await page.waitForSelector("video")
+
         await page.evaluate(f"""
             const video = document.querySelector("video");
             video.currentTime = {start};
@@ -39,7 +34,7 @@ async def record_youtube_clip(url: str, start: float, end: float, output_path: s
             video.play();
         """)
 
-        await asyncio.sleep(3)  # Allow buffer to load
+        await asyncio.sleep(2)  # Buffer time
 
         ffmpeg_cmd = [
             "ffmpeg", "-y",
@@ -60,9 +55,10 @@ async def record_youtube_clip(url: str, start: float, end: float, output_path: s
         proc = subprocess.Popen(ffmpeg_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         await asyncio.sleep(duration + 2)
         proc.terminate()
+        stdout, stderr = proc.communicate()
 
         if not os.path.exists(abs_output):
-            raise RuntimeError("Recording failed: clip not created")
+            raise RuntimeError(f"Recording failed: clip not created\n\nFFmpeg Error:\n{stderr.decode()}")
 
     finally:
         await browser.close()
