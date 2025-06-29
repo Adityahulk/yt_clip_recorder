@@ -1,6 +1,5 @@
 FROM python:3.10-slim
 
-# Install system dependencies, including Chromium and FFmpeg
 RUN apt-get update && apt-get install -y \
     chromium \
     ffmpeg \
@@ -15,25 +14,15 @@ RUN apt-get update && apt-get install -y \
     libnss3 \
     libxss1 \
     libxtst6 \
-    curl \
     && apt-get clean
 
-# Set Chromium path for pyppeteer
+# Set environment variable so pyppeteer knows where Chromium is
 ENV PYPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
 
-WORKDIR /app
-
-# Install Python dependencies
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy the code
-COPY . .
+COPY . /app
+WORKDIR /app
 
-# Set display for Xvfb
-ENV DISPLAY=:99.0
-
-# Start Xvfb and the recorder
-CMD bash -c "\
-    Xvfb :99 -screen 0 1280x720x24 & \
-    python record.py"
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
