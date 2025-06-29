@@ -42,7 +42,7 @@ async def record_youtube_clip(url: str, start: float, end: float, output_path: s
             "-video_size", "1280x720",
             "-i", os.environ.get("DISPLAY", ":99.0"),
             "-f", "pulse",
-            "-i", "default",
+            "-i", "dummy.monitor",
             "-t", str(duration),
             "-c:v", "libx264",
             "-preset", "ultrafast",
