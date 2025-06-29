@@ -1,49 +1,45 @@
 import os
 import subprocess
-from fastapi import FastAPI, Response
-from fastapi.responses import FileResponse
+from fastapi import FastAPI
+from fastapi.responses import StreamingResponse
 
 app = FastAPI()
 
 @app.get("/")
-async def clip_video():
+async def download_full_video():
     yt_url = os.environ.get("YT_URL")
-    start = os.environ.get("START")
-    end = os.environ.get("END")
 
-    if not yt_url or not start or not end:
-        return {"error": "Missing required environment variables (YT_URL, START, END)"}
+    if not yt_url:
+        return {"error": "Missing required environment variable: YT_URL"}
 
     try:
-        output_path = "/tmp/output.mp4"
-        temp_path = "/tmp/temp.%(ext)s"
+        output_template = "/tmp/video.%(ext)s"
+        
+        # Step 1: Download video
+        subprocess.run(["yt-dlp", "-f", "best", "-o", output_template, yt_url], check=True)
 
-        # Step 1: Download the video
-        subprocess.run(["yt-dlp", "-f", "best", "-o", temp_path, yt_url], check=True)
-
-        # Detect the downloaded file
+        # Step 2: Detect actual downloaded file
         downloaded_file = None
         for ext in ["mp4", "webm", "mkv"]:
-            path = f"/tmp/temp.{ext}"
+            path = f"/tmp/video.{ext}"
             if os.path.exists(path):
                 downloaded_file = path
                 break
+
         if not downloaded_file:
             raise Exception("Downloaded video file not found.")
 
-        # Step 2: Clip using FFmpeg
-        subprocess.run([
-            "ffmpeg", "-y",
-            "-ss", str(start), "-to", str(end),
-            "-i", downloaded_file,
-            "-c:v", "libx264", "-c:a", "aac",
-            output_path
-        ], check=True)
+        # Step 3: Open file stream and return
+        def iterfile():
+            with open(downloaded_file, mode="rb") as file:
+                while chunk := file.read(1024 * 1024):  # 1MB chunks
+                    yield chunk
 
-        # Return clip as response
-        return FileResponse(output_path, media_type="video/mp4", filename="clip.mp4")
+        return StreamingResponse(iterfile(), media_type="video/mp4", headers={
+            "Content-Disposition": 'attachment; filename="video.mp4"'
+        })
 
     except subprocess.CalledProcessError as e:
-        return {"error": f"Subprocess failed: {e}"}
+        return {"error": f"Download failed: {e}"}
     except Exception as e:
         return {"error": str(e)}
