@@ -25,4 +25,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY . /app
 WORKDIR /app
 
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD bash -c "\
+    rm -f /tmp/.X99-lock && \
+    Xvfb :99 -screen 0 1280x720x24 & \
+    sleep 2 && \
+    uvicorn main:app --host 0.0.0.0 --port 8000"
