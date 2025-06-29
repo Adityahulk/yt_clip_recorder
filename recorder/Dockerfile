@@ -36,4 +36,4 @@ ENV DISPLAY=:99.0
 # Start Xvfb and the recorder
 CMD bash -c "\
     Xvfb :99 -screen 0 1280x720x24 & \
-    python recorder.py"
+    python record.py"
