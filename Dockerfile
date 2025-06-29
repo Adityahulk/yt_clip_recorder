@@ -9,8 +9,11 @@ RUN apt-get update && apt-get install -y \
     && apt-get clean
 
 # Set env variables
+# Set env variables
 ENV DISPLAY=:99.0
 ENV PYPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
+ENV PULSE_SERVER=unix:/run/pulse/native
+
 
 # Copy code
 WORKDIR /app
@@ -20,9 +23,9 @@ COPY requirements.txt .
 # Install Python dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Launch services and FastAPI
+# Launch all services
 CMD bash -c "\
-    pulseaudio --system --disallow-exit --disable-shm & \
+    pulseaudio --start --exit-idle-time=-1 --system=true --disallow-exit --disable-shm --no-cpu-limit --verbose & \
     sleep 2 && \
     Xvfb :99 -screen 0 1280x720x24 & \
     sleep 2 && \
