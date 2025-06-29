@@ -1,0 +1,20 @@
+version: '3.8'
+
+services:
+  browser:
+    build: ./browser
+    container_name: browser
+    environment:
+      - DISPLAY=:99.0
+    volumes:
+      - /tmp/.X11-unix:/tmp/.X11-unix
+
+  recorder:
+    build: ./recorder
+    container_name: recorder
+    depends_on:
+      - browser
+    ports:
+      - "8000:8000"
+    environment:
+      - DISPLAY=:99.0
