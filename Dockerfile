@@ -22,6 +22,8 @@ COPY . .
 # Use system Chromium path
 ENV PYPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
 
+EXPOSE 8000
+
 # Launch all services
 CMD bash -c "\
     pulseaudio --start && \
