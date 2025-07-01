@@ -2,13 +2,12 @@ import os
 import subprocess
 from fastapi import FastAPI
 from fastapi.responses import StreamingResponse
-from urllib.parse import unquote
 
 app = FastAPI()
 
 @app.get("/")
 async def download_full_video():
-    yt_url = unquote(os.getenv("YT_URL"))
+    yt_url = os.getenv("YT_URL")
 
     if not yt_url:
         return {"error": "Missing required environment variable: YT_URL"}
